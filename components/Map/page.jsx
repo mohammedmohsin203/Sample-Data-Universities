@@ -1,10 +1,16 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Map, Source, Layer } from 'react-map-gl/maplibre';
 import { clusterLayer, clusterCountLayer, unclusteredPointLayer } from './layers';
 import { universitiesData } from "@/components/Map/universities-Data";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     Drawer,
     DrawerContent,
@@ -21,6 +27,24 @@ export default function Globe() {
     const [drawerInfo, setDrawerInfo] = useState(null);
     const [filterMode, setFilterMode] = useState(false);
     const [hoveredCountry, setHoveredCountry] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+
+    // Available categories
+    const categories = ['All', 'Engineering', 'Research Institute', 'Arts & Finance'];
+
+    // Filter universities data based on selected category
+    const filteredUniversitiesData = useMemo(() => {
+        if (selectedCategory === 'All') {
+            return universitiesData;
+        }
+
+        return {
+            ...universitiesData,
+            features: universitiesData.features.filter(
+                feature => feature.properties.category === selectedCategory
+            )
+        };
+    }, [selectedCategory]);
 
     // Country configurations for zoom and styling
     const countryConfigs = {
@@ -199,19 +223,58 @@ export default function Globe() {
         setHoveredCountry(null);
     };
 
+    const handleCategoryChange = (category) => {
+        setSelectedCategory(category);
+    };
+
     return (
         <main className="h-screen relative">
-            {/* Filter Button */}
-            <button
-                onClick={toggleFilterMode}
-                className={`absolute top-4 left-4 z-10 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                    filterMode
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-            >
-                {filterMode ? 'Filter: ON' : 'Filter: OFF'}
-            </button>
+            {/* Control Panel */}
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                {/* Filter Button */}
+                <button
+                    onClick={toggleFilterMode}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        filterMode
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                >
+                    {filterMode ? 'Filter: ON' : 'Filter: OFF'}
+                </button>
+
+                {/* Category Buttons */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200 flex items-center gap-2">
+                            Category: {selectedCategory}
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                        {categories.map((category) => (
+                            <DropdownMenuItem
+                                key={category}
+                                onClick={() => handleCategoryChange(category)}
+                                className={`cursor-pointer ${
+                                    selectedCategory === category
+                                        ? 'bg-indigo-50 text-indigo-600 font-medium'
+                                        : ''
+                                }`}
+                            >
+                                {category}
+                                {selectedCategory === category && (
+                                    <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
             <Map
                 ref={mapRef}
@@ -237,7 +300,7 @@ export default function Globe() {
                 <Source
                     id="universitiesData"
                     type="geojson"
-                    data={universitiesData}
+                    data={filteredUniversitiesData}
                     cluster={true}
                     clusterMaxZoom={14}
                     clusterRadius={50}
@@ -349,7 +412,12 @@ export default function Globe() {
                             />
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                            {hoverInfo.properties.name}
+                            <div>
+                                <div className="font-medium">{hoverInfo.properties.name}</div>
+                                <div className="text-xs text-gray-400">
+                                    {hoverInfo.properties.category}
+                                </div>
+                            </div>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
@@ -362,9 +430,10 @@ export default function Globe() {
                         <DrawerTitle>{drawerInfo?.name}</DrawerTitle>
                         <DrawerDescription>
                             <span>
-                                Country : {drawerInfo?.country} <br/>
-                                State : {drawerInfo?.state} <br/>
-                                Students Count : {drawerInfo?.students}
+                                Country: {drawerInfo?.country} <br/>
+                                State: {drawerInfo?.state} <br/>
+                                Students Count: {drawerInfo?.students} <br/>
+                                Category: {drawerInfo?.category} <br/>
                             </span>
                         </DrawerDescription>
                     </DrawerHeader>
